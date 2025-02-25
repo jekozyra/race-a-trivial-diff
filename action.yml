@@ -1,0 +1,62 @@
+name: "Race a Trivial Diff"
+author: "Jillian Kozyra"
+description: "Detect speedy approvals on small pull requests and post the winner to Slack"
+
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check diff size
+      id: diff-size
+      shell: bash
+      run: |
+        PR_DIFF=$(curl -s -H "Authorization: token ${{ github.token }}" \
+          "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}")
+        CHANGES=$(echo "$PR_DIFF" | jq '.additions + .deletions')
+        if [ $CHANGES -lt 10 ]; then
+          echo "is_small=true" >> $GITHUB_OUTPUT
+        else
+          echo "is_small=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Get recent approvals  
+      if: steps.diff-size.outputs.is_small == 'true'
+      id: recent-approvals
+      shell: bash
+      run: |
+        REVIEWS=$(curl -s -H "Authorization: token ${{ github.token }}" \
+          "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews")
+        # Get approvals from the last minute
+        CURRENT_TIME=$(date +%s)
+        RECENT_APPROVALS=$(echo "$REVIEWS" | jq -r "[
+          .[] |
+          select(.state == \"APPROVED\") |
+          select(
+            (.submitted_at | fromdateiso8601) >= ($CURRENT_TIME - 60)
+          )
+        ]")
+
+        COUNT=$(echo "$RECENT_APPROVALS" | jq '. | length')
+        if [ "$COUNT" -gt 1 ]; then
+          WINNER=$(echo "$RECENT_APPROVALS" | jq -r '.[0].user.login')
+          echo "has_race=true" >> $GITHUB_OUTPUT
+          echo "winner=$WINNER" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Post to Slack
+      if: steps.recent-approvals.outputs.has_race == 'true'
+      uses: slackapi/slack-github-action@v2.0.0
+      with:
+        method: chat.postMessage
+        token: ${{ inputs.slack_token }}
+        payload: |
+          channel: '${{ inputs.slack_channel }}'
+          text: "🏎️ *Race-a-trivial-diff* 🏎️\n${{ steps.recent-approvals.outputs.winner }} wins! 🏆🏆🏆\n<${{ github.event.pull_request.html_url }}|${{ github.event.pull_request.title }}>"
+
+inputs:
+  slack_token:
+    description: 'Slack bot token for posting messages'
+    required: true
+  slack_channel:
+    description: 'Slack channel ID to post messages to'
+    required: true
