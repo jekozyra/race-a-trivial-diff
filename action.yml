@@ -2,6 +2,9 @@ name: "Race a Trivial Diff"
 author: "Jillian Kozyra"
 description: "Detect speedy approvals on small pull requests and post the winner to Slack"
 
+branding:
+  icon: git-pull-request
+  color: green
 
 runs:
   using: "composite"
