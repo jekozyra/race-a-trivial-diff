@@ -23,9 +23,8 @@ jobs:
       pull-requests: read
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
       - name: Race a Trivial Diff
-        uses: jilliankozyra/race-a-trivial-diff@v1
+        uses: jekozyra/race-a-trivial-diff@v0.0.1
 ```
 
 ## How it works
