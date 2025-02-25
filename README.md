@@ -25,6 +25,9 @@ jobs:
     steps:
       - name: Race a Trivial Diff
         uses: jekozyra/race-a-trivial-diff@v0.0.1
+        with:
+          slack_token: ${{ secrets.SLACK_TOKEN }}
+          slack_channel: xxxxx
 ```
 
 ## How it works
